@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  # The reverse proxy service (Træfik)
+  reverse-proxy:
+    container_name: vagrant-traefik
+    hostname: traefik
+    restart: always
+    image: traefik  # The official Traefik docker image
+    command: --api --docker  # Enables the web UI and tells Træfik to listen to docker
+    ports:
+      - "80:80"      # The HTTP port
+      - "443:443"    # The HTTPS port
+      - "8080:8080"  # The Web UI (enabled by --api)
+    networks:
+      - traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # So that Traefik can listen to the Docker events
+      - ./data/traefik.toml:/traefik.toml
+      - data:/tmp
+
+volumes:
+  data:
+    driver: local
+
+networks:
+  traefik:
+    external: true
