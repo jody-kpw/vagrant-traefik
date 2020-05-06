@@ -1,0 +1,32 @@
+global:
+  sendAnonymousUsage: true
+
+# https://docs.traefik.io/observability/logs/
+log:
+  level: DEBUG
+  format: json
+  
+entryPoints:
+  web:
+    address: ':80'
+  web-secure:
+    address: ':443'
+
+# https://docs.traefik.io/providers/docker/
+providers:
+  docker:
+    endpoint: 'unix:///var/run/docker.sock'
+    network: traefik
+    exposedByDefault: false
+
+  # Dynamic Configuration
+  # https://docs.traefik.io/getting-started/configuration-overview/
+  # Enable the file provider to define routers / middlewares / services in file
+  file:
+    filename: /etc/traefik/dynamic.config.yml
+    watch: true
+
+# https://docs.traefik.io/operations/api/
+api:
+  insecure: true
+  dashboard: true

@@ -1,28 +1,52 @@
 version: '3'
 
 services:
-  # The reverse proxy service (Træfik)
+  # The reverse proxy service (Traefik)
   reverse-proxy:
+    # The official v2.2 Traefik docker image
+    image: "traefik:v2.2"
     container_name: vagrant-traefik
-    hostname: traefik
-    restart: always
-    image: traefik  # The official Traefik docker image
-    command: --api --docker  # Enables the web UI and tells Træfik to listen to docker
+    restart: unless-stopped
+    command: --configFile=/etc/traefik/traefik.yml
     ports:
-      - "80:80"      # The HTTP port
-      - "443:443"    # The HTTPS port
-      - "8080:8080"  # The Web UI (enabled by --api)
+      # Expose 80 for inbound HTTP traffic.
+      - "80:80"
+      # Expose 443 for inbound HTTPS traffic.
+      - "443:443"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
     networks:
       - traefik
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # So that Traefik can listen to the Docker events
-      - ./data/traefik.toml:/traefik.toml
-      - data:/tmp
+      # So that Traefik can listen to the Docker events
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      # Mount the directory containing the configuration file
+      - "./data/config/traefik.yml:/etc/traefik/traefik.yml"
+      # Mount the directory containing the dynamic configuration file 
+      - "./data/config/dynamic.config.yml:/etc/traefik/dynamic.config.yml"
+      # Mount the directory containing the certs
+      - "./data/certs:/etc/certs"
 
-volumes:
-  data:
-    driver: local
-
+  whoami:
+    image: "containous/whoami"
+    container_name: "simple-service"
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      # Dynamic configuration with Docker Labels
+      # Ref: https://docs.traefik.io/reference/dynamic-configuration/docker/
+      - traefik.enable=true
+      - traefik.http.middlewares.whoami-redirect-web-secure.redirectscheme.scheme=https
+      - traefik.http.routers.whoami-web.middlewares=whoami-redirect-web-secure
+      - traefik.http.routers.whoami-web.rule=Host(`whoami.docker.local`)
+      - traefik.http.routers.whoami-web.entrypoints=web
+      - traefik.http.routers.whoami-web-secure.rule=Host(`whoami.docker.local`)
+      - traefik.http.routers.whoami-web-secure.tls=true
+      - traefik.http.routers.whoami-web-secure.entrypoints=web-secure
+      # if you have multiple ports exposed on the service, specify port in the web-secure service
+      - traefik.http.services.whoami-web-secure.loadbalancer.server.port=80
+      
 networks:
   traefik:
     external: true
